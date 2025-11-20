@@ -5,9 +5,9 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 
 let camera, scene, renderer, stats, controls;
-let object;
 
 const clock = new THREE.Clock();
+let object;
 
 init();
 
@@ -15,109 +15,133 @@ function init() {
 
     const container = document.getElementById('three-container');
 
-    // 📷 CÁMARA
-    camera = new THREE.PerspectiveCamera(
-        70,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        100
-    );
-
-    // Posición inicial para modo normal (no VR)
+    // ----------------------
+    // CÁMARA
+    // ----------------------
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.set(0, 1.6, 2);
-    camera.lookAt(0, 1.6, 0);
 
-    // 🌄 ESCENA
+    // ----------------------
+    // ESCENA
+    // ----------------------
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
-    // 💡 ILUMINACIÓN
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
-    hemiLight.position.set(0, 10, 0);
-    scene.add(hemiLight);
+    // ----------------------
+    // LUCES PARA VR
+    // ----------------------
+    // Luz ambiental fuerte (la que VR respeta)
+    const ambient = new THREE.AmbientLight(0xffffff, 2.0);
+    scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-    dirLight.position.set(5, 10, 5);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+    // Luz hemisférica suave
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    hemi.position.set(0, 10, 0);
+    scene.add(hemi);
 
-    // 📦 CARGAR MODELO FBX
+    // Luz direccional como "sol"
+    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+    dir.position.set(5, 10, 5);
+    scene.add(dir);
+
+    // Luz interior del salón
+    const point = new THREE.PointLight(0xffffff, 1.4, 20);
+    point.position.set(0, 2.5, 0);
+    scene.add(point);
+
+    // ----------------------
+    // CARGA DE MODELO FBX
+    // ----------------------
     const loader = new FBXLoader();
     loader.load("models/exa.fbx", (group) => {
 
-        // ORIENTACIÓN (ajústala si tu salón sale girado)
-        group.rotation.x = Math.PI / 2;
-        group.rotation.y = Math.PI;
-        group.rotation.z = 0;
+        // Quitar rotaciones para evitar errores
+        group.rotation.set(0, 0, 0);
 
-        // 1) OBTENER TAMAÑO REAL DEL MODELO
+        // CALCULAR escala real
         let box = new THREE.Box3().setFromObject(group);
-        const size = new THREE.Vector3();
+        let size = new THREE.Vector3();
         box.getSize(size);
 
-        // 2) ESCALAR PARA QUE LA ALTURA DEL SALÓN SEA ≈ 3 m
-        const alturaDeseada = 3.0;        // altura de techo (~3 m)
-        const factorEscala = alturaDeseada / size.y;
-        group.scale.setScalar(factorEscala);
+        const altura = 3.0; // altura real del salón
+        const escala = altura / size.y;
+        group.scale.setScalar(escala);
 
-        // 3) VOLVER A CALCULAR CAJA DESPUÉS DE ESCALAR
-        box.setFromObject(group);
+        // RE-CALCULAR caja
+        box = new THREE.Box3().setFromObject(group);
 
-        // 4) CENTRAR EL MODELO EN EL ORIGEN (X,Z)
+        // Centrar el salón en X y Z
         const center = box.getCenter(new THREE.Vector3());
         group.position.x -= center.x;
         group.position.z -= center.z;
 
-        // 5) BAJAR EL MODELO PARA QUE EL PISO QUEDE EXACTAMENTE EN Y = 0
+        // Ajustar piso a Y=0
         box.setFromObject(group);
-        const minY = box.min.y;
-        group.position.y -= minY;
+        group.position.y -= box.min.y;
 
-        // 6) PAREDES DOBLE CARA
+        // ------------------------
+        // REPARACIÓN DE MATERIALES
+        // ------------------------
         group.traverse((child) => {
-            if (child.isMesh && child.material) {
+            if (child.isMesh) {
+
+                // Hacer paredes double-side
                 child.material.side = THREE.DoubleSide;
-                child.castShadow = true;
-                child.receiveShadow = true;
+
+                // Reparar materiales completamente negros
+                if ((!child.material.map) &&
+                    child.material.color.r === 0 &&
+                    child.material.color.g === 0 &&
+                    child.material.color.b === 0) 
+                {
+                    child.material.color.set(0xaaaaaa);
+                }
+
+                // Reparar normales invertidas
+                child.geometry.computeVertexNormals();
             }
         });
 
-        // Agregar modelo final corregido
         scene.add(group);
         object = group;
 
-        // 7) POSICIONAR AL USUARIO DENTRO DEL SALÓN
-        //    En el centro, a 1.6 m de altura, un poco hacia atrás
+        // POSICIÓN inicial del usuario
         camera.position.set(0, 1.6, 0.5);
-        controls.target.set(0, 1.6, -2);
+        controls.target.set(0, 1.6, -1);
         controls.update();
     });
 
-    // 🖥 RENDERER
+    // ----------------------
+    // RENDERER
+    // ----------------------
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-
-    // VR
     renderer.xr.enabled = true;
-    // "local-floor" hace que la cabeza esté a 1.6 m sobre Y=0
+
+    // Esto hace que la altura del VR sea EXACTA
     renderer.xr.setReferenceSpaceType('local-floor');
-    document.body.appendChild(VRButton.createButton(renderer));
 
     container.appendChild(renderer.domElement);
+    document.body.appendChild(VRButton.createButton(renderer));
 
-    // 🎮 CONTROLES
+    // ----------------------
+    // CONTROLES
+    // ----------------------
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 1.6, 0);
     controls.update();
 
-    // 🧪 STATS
+    // ----------------------
+    // STATS
+    // ----------------------
     stats = new Stats();
     container.appendChild(stats.dom);
 
+    // ----------------------
+    // EVENTOS
+    // ----------------------
     window.addEventListener('resize', onWindowResize);
-
     renderer.setAnimationLoop(animate);
 }
 
@@ -128,7 +152,6 @@ function onWindowResize() {
 }
 
 function animate() {
-    const delta = clock.getDelta();
     renderer.render(scene, camera);
     stats.update();
 }
