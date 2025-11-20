@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es" class="h-100">
+
+<head>
+    <meta charset="utf-8">
+    <title> Visor Estereoscópico</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- CSS Personalizado -->
+    <link rel="stylesheet" href="css/main.css">
+
+    <!-- Importmap Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./build/three.module.js",
+                "three/addons/": "./jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-dark bg-dark bg-opacity-75 border-bottom border-secondary shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <span class="me-2">🕶️</span>
+                <span>Visor VR </span>
+            </a>
+            <span class="badge rounded-pill text-bg-info">
+                MODO: <span id="modeLabel">Normal / VR</span>
+            </span>
+        </div>
+    </nav>
+
+    <!-- CONTENEDOR 3D CENTRADO -->
+    <main class="flex-fill d-flex justify-content-center align-items-center py-4">
+        <div class="viewer-card shadow-lg">
+            <div class="viewer-title">
+                Vista 3D del Salón
+            </div>
+            <div id="three-container"></div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="py-3 text-center text-secondary border-top border-secondary bg-dark bg-opacity-75">
+        <div class="container">
+            Proyecto estereoscópico desarrollado por <strong>Daniel Morales</strong> con <strong>Three.js</strong>.
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Three.js -->
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>
